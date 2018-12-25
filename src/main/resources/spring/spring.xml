@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:component-scan base-package="com.poni"/>
+    <import resource="spring-dao.xml"/>
+    <import resource="spring-redis.xml"/>
+
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <!-- loginUrl认证提交地址，如果没有认证将会请求此地址进行认证，请求地址将由formAuthenticationFilter进行表单认证 -->
+        <property name="loginUrl" value="login.jsp"/>
+        <!--&lt;!&ndash; 通过unauthorizedUrl指定没有权限操作时跳转页面&ndash;&gt;-->
+        <property name="unauthorizedUrl" value="403.jsp"/>
+
+        <!-- 过滤器定义，从上到下执行，一般将/**放在最下面 -->
+        <property name="filterChainDefinitions">
+            <value>
+                /login.jsp = anon
+                /subLogin = anon
+                /testRole = roles["admin"]
+                <!--/testRole1 = roles["admin","manager"]-->
+                <!--/testRole1 = roleOr["admin","manager"]-->
+                /testPerms = perms["user:update"]
+                /* = authc
+            </value>
+        </property>
+        <property name="filters">
+            <util:map>
+                <entry key="rolesOr" value-ref="rolesFilter"/>
+            </util:map>
+        </property>
+    </bean>
+
+    <!--导入自定义Filet-->
+    <bean id="rolesFilter" class="com.poni.filter.RolesFilter"/>
+
+    <!-- 解决shiro配置的没有权限访问时，unauthorizedUrl不跳转到指定路径的问题 -->
+    <bean class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+    <property name="exceptionMappings">
+        <props>
+            <prop key="org.apache.shiro.authz.UnauthorizedException">/403.jsp</prop>
+        </props>
+    </property>
+    </bean>
+
+    <!-- securityManager安全管理器 -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <!-- 创建 SecurityManager 对象 -->
+        <property name="realm" ref="realm"/>
+        <property name="sessionManager" ref="sessionManager"/>
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="rememberMeManager" ref="cookieRememberMeManager"/>
+    </bean>
+
+    <!--配置自定义Realm-->
+    <bean id="realm" class="com.poni.Realm.MybatisCustomRealm">
+        <property name="credentialsMatcher" ref="credentialsMatcher"/>
+    </bean>
+
+    <!--凭证配置器-->
+    <bean id="credentialsMatcher" class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+        <!--加密算法-->
+        <property name="hashAlgorithmName" value="md5"/>
+        <!--迭代次数-->
+        <property name="hashIterations" value="1"/>
+    </bean>
+
+     <!--使用默认的 sessionManager 会频繁的操作读 redis 使用自定义的 CustomSessionManager -->
+    <bean id="sessionManager" class="com.poni.session.CustomSessionManager">
+        <property name="sessionDAO" ref="redisSessionDao"/>
+    </bean>
+
+    <!--redis的增删改查操作通过自定义的RedisSessionDao进行操作-->
+    <bean id="redisSessionDao" class="com.poni.session.RedisSessionDao"/>
+
+    <bean id="cacheManager" class="com.poni.cache.RedisCacheManager"/>
+
+    <!--创建cookie管理器,记住密码-->
+    <bean id="cookieRememberMeManager" class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+        <property name="cookie" ref="cookie"/>
+    </bean>
+
+    <!--创建cookie构造器-->
+    <bean id="cookie" class="org.apache.shiro.web.servlet.SimpleCookie">
+        <constructor-arg value="rememberMe"/>
+        <!--cookie存活时间-->
+        <property name="maxAge" value="600000"/>
+    </bean>
+</beans>

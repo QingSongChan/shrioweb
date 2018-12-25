@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.poni.dao.UserDao">
+
+    <resultMap type="com.poni.vo.User" id="userResultMap" >
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="rolename" column="rolename"/>
+    </resultMap>
+
+    <!-- 目的：为DAO接口方法提供sql语句配置 -->
+    <!-- 查询用户和密码进行登录 -->
+    <select id="getUserByUsername" resultMap="userResultMap" parameterType="String">
+        select username,password
+        from users
+        where username = #{username}
+    </select>
+
+    <select id="queryRolesByUsername" resultMap="userResultMap" parameterType="String">
+        select rolename
+        from users
+        where username = #{username}
+    </select>
+
+
+</mapper>
